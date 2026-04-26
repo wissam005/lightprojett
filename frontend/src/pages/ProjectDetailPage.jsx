@@ -7,7 +7,7 @@ import {
 } from "../services/api";
 import "./ProjectDetailPage.css";
 import CustomSelect from "./CustomSelect";
-
+import TaskAI from "../components/TaskAI";
 
 // ─────────────────────────────────────────────
 //  Helpers
@@ -451,6 +451,12 @@ function MemberView({ project, user, tasks, projectMembers, onRefresh }) {
                             >
                               🔗 Dépendances
                             </button>
+                            <button
+                                className={`pdp-expand-tab ${activeTab === "ai" ? "active" : ""}`}
+                               onClick={() => setExpandedTab((p) => ({ ...p, [task.id]: "ai" }))}
+                            >
+                              🤖 Analyse IA
+                            </button>
                           </div>
 
                           {activeTab === "logs" && (
@@ -514,6 +520,7 @@ function MemberView({ project, user, tasks, projectMembers, onRefresh }) {
                               isManager={false}
                             />
                           )}
+                          {activeTab === "ai" && <TaskAI task={task} />}
                         </td>
                       </tr>
                     )}
@@ -1092,6 +1099,12 @@ function ManagerView({ project, user, tasks, allMembers, projectMembers, onRefre
                                   onClick={() => setExpandedTab((p) => ({ ...p, [task.id]: "deps" }))}>
                                   🔗 Dépendances
                                 </button>
+                                <button
+                                 className={`pdp-expand-tab ${activeTab === "ai" ? "active" : ""}`}
+                                 onClick={() => setExpandedTab((p) => ({ ...p, [task.id]: "ai" }))}
+                                >
+                                 🤖 Analyse IA
+                                </button>
                               </div>
 
                               {activeTab === "logs" && (
@@ -1149,6 +1162,7 @@ function ManagerView({ project, user, tasks, allMembers, projectMembers, onRefre
                                   isManager={true}
                                 />
                               )}
+                              {activeTab === "ai" && <TaskAI task={task} />}
                             </td>
                           </tr>
                         )}

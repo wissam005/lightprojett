@@ -442,3 +442,22 @@ export async function fetchStats(projectId) {
   const res = await api.get(`/api/projects/${projectId}/stats`);
   return res.data;
 }
+
+export async function fetchTaskPlan({ title, description, type, estimatedHours }) {
+  const res = await api.post('/api/ai/task-plan', { title, description, type, estimatedHours });
+  return res.data;
+}
+
+export async function fetchTaskGuide({ title, description }) {
+  const res = await api.post('/api/ai/task-guide', { title, description });
+  return res.data;
+}
+
+export async function fetchTaskBlockage({ title, description, status, daysStuck }) {
+  const res = await api.post('/api/ai/task-blockage', { title, description, status, daysStuck });
+  return res.data;
+}
+export async function fetchMemberSummary({ name, totalTasks, doneTasks, lateTasks, inProgressTasks, tasks }) {
+  const res = await api.post('/api/ai/member-summary', { name, totalTasks, doneTasks, lateTasks, inProgressTasks, tasks });
+  return res.data;
+}

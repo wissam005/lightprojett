@@ -21,12 +21,9 @@ export default function LoginPage({ onLogin }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Erreur de connexion.");
-
-      // Stocker JWT + user (avec isAdmin) dans localStorage
       localStorage.setItem("jwt", data.jwt);
-      localStorage.setItem("user", JSON.stringify(data.user)); // data.user contient isAdmin
-
-      onLogin(data.user); // { id, name, email, isAdmin }
+      localStorage.setItem("user", JSON.stringify(data.user));
+      onLogin(data.user);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -39,12 +36,10 @@ export default function LoginPage({ onLogin }) {
       <div className="login-card">
         <div className="login-logo">Light<span>Project</span></div>
         <p className="login-version">v1.0 — Bêta</p>
-
         <h1 className="login-title">Connexion</h1>
         <p className="login-sub">
           Entrez votre token API OpenProject pour accéder à l'application.
         </p>
-
         <div className="login-field">
           <label>Token API OpenProject</label>
           <input
@@ -55,13 +50,10 @@ export default function LoginPage({ onLogin }) {
             onKeyDown={(e) => e.key === "Enter" && handleLogin()}
           />
         </div>
-
         <p className="login-hint">
           💡 Trouvez votre token dans OpenProject → Mon compte → Tokens d'accès API
         </p>
-
         {error && <p className="login-error">⚠️ {error}</p>}
-
         <button className="login-btn" onClick={handleLogin} disabled={loading}>
           {loading ? (
             <><span className="login-spinner" /> Connexion en cours...</>

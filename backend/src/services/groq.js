@@ -8,14 +8,14 @@ function getClient() {
   return new Groq({ apiKey: key });
 }
 
-async function callGroq(prompt) {
+async function callGroq(prompt, maxTokens = 1024) {
   console.log("🤖 Appel Groq...");
   const client = getClient();
   const response = await client.chat.completions.create({
     model: "llama-3.3-70b-versatile",
     messages: [{ role: "user", content: prompt }],
     temperature: 0.1,
-    max_tokens: 1024,
+    max_tokens: maxTokens,
   });
   console.log("✅ Réponse Groq reçue");
   return response.choices[0].message.content;
@@ -88,18 +88,52 @@ Question : ${question}`;
 
 // ── 4. Rapport hebdomadaire ────────────────────────────────────
 async function generateWeeklyReport(projects) {
-  const prompt = `Génère un rapport hebdomadaire professionnel. Réponds UNIQUEMENT en JSON valide.
-Projets : ${JSON.stringify(projects)}
+  const prompt = `Tu es un expert senior en gestion de projet. Réponds UNIQUEMENT en JSON valide, sans texte avant ou après.
+
+Voici les données des projets à analyser :
+${JSON.stringify(projects, null, 2)}
+
+Pour chaque projet, génère une analyse DÉTAILLÉE et SPÉCIFIQUE basée sur ses vraies données.
+
 JSON attendu :
 {
-  "summary": "résumé général",
-  "positives": ["point positif 1", "point positif 2"],
-  "warnings": ["alerte 1"],
-  "recommendations": ["conseil 1", "conseil 2"]
-}`;
+  "summary": "résumé global du portefeuille de projets en 2-3 phrases",
+  "projects": [
+    {
+      "name": "nom exact du projet",
+      "status": "bon" | "attention" | "danger",
+      "analysis": "paragraphe détaillé expliquant POURQUOI ce projet est dans cet état, basé sur ses chiffres réels (progression, retards, risque)",
+      "risks": [
+        "risque futur concret si rien ne change",
+        "autre risque identifié"
+      ],
+      "actionPlan": [
+        {"step": 1, "action": "action concrète et précise", "priority": "haute" | "moyenne" | "faible"},
+        {"step": 2, "action": "action concrète et précise", "priority": "haute" | "moyenne" | "faible"},
+        {"step": 3, "action": "action concrète et précise", "priority": "haute" | "moyenne" | "faible"}
+      ]
+    }
+  ],
+  "globalRecommendations": [
+    "recommandation transversale 1",
+    "recommandation transversale 2"
+  ]
+}
 
-  const text = await callGroq(prompt);
-  return extractJSON(text);
+Règles importantes :
+- status "bon" si riskScore < 20 ET lateTasks < 15% des tâches totales
+- status "attention" si riskScore entre 20-50 OU lateTasks entre 15-40%
+- status "danger" si riskScore > 50 OU lateTasks > 40%
+- L'analysis doit citer les vrais chiffres du projet (ex: "7 tâches en retard sur 12")
+- Génère exactement 3-4 étapes dans actionPlan par projet
+- Réponds en français professionnel`;
+
+  const text = await callGroq(prompt, 3000);
+  const parsed = extractJSON(text);
+  if (!parsed.summary || !Array.isArray(parsed.projects)) {
+    throw new Error("Format IA invalide");
+  }
+  return parsed;
 }
 
 // ── 5. Plan de travail pour une tâche ─────────────────────────
@@ -149,27 +183,61 @@ Génère exactement 4 questions-réponses pédagogiques.`;
 
 // ── 7. Détection de blocage d'une tâche ───────────────────────
 async function detectTaskBlockage(task) {
-  const prompt = `Tu es un expert en gestion de projet. Réponds UNIQUEMENT en JSON valide.
-Une tâche semble bloquée :
+  // Liste des tâches bloquantes non terminées
+  const blockers = (task.dependsOn || [])
+    .filter(d => !d.isDone)
+    .map(d => `• #${d.taskId} "${d.title}" (statut: ${d.status})`)
+    .join('\n')
+
+  const prompt = task.isBlocked
+    ? `Tu es un expert en gestion de projet. Réponds UNIQUEMENT en JSON valide.
+
+La tâche suivante est CONFIRMÉE BLOQUÉE par le système de dépendances :
+
 - Titre : ${task.title}
 - Description : ${task.description}
 - Statut actuel : ${task.status}
 - Jours sans avancement : ${task.daysStuck || "inconnu"}
-Analyse la situation et propose des solutions concrètes.
+- Bloquée par ces tâches non terminées :
+${blockers || "• Dépendances non spécifiées"}
+
+Génère un plan d'action CONCRET pour débloquer cette situation.
+
 JSON attendu :
 {
   "isBlocked": true,
-  "reason": "raison probable du blocage en français",
+  "reason": "explication précise basée sur les tâches bloquantes listées",
   "solutions": [
-    {"title": "Solution 1", "description": "explication concrète", "priority": "haute"}
+    {"title": "Solution 1", "description": "action concrète", "priority": "haute"}
   ],
-  "urgency": "faible"
+  "urgency": "ignoré"
 }
-urgency : "faible", "moyenne", "haute"
-Génère 3 solutions concrètes.`;
+Génère exactement 3 solutions concrètes. urgency sera ignoré car calculé par le système.`
 
-  const text = await callGroq(prompt);
-  return extractJSON(text);
+    : `Tu es un expert en gestion de projet. Réponds UNIQUEMENT en JSON valide.
+
+La tâche suivante n'est PAS bloquée selon le système :
+
+- Titre : ${task.title}
+- Description : ${task.description}
+- Statut actuel : ${task.status}
+- Toutes les dépendances sont terminées ou il n'y en a pas.
+
+Génère des conseils préventifs pour éviter un blocage futur.
+
+JSON attendu :
+{
+  "isBlocked": false,
+  "reason": "explication que la tâche n'est pas bloquée et pourquoi",
+  "solutions": [
+    {"title": "Conseil 1", "description": "conseil préventif", "priority": "faible"}
+  ],
+  "urgency": "ignoré"
+}
+Génère exactement 3 conseils préventifs.`
+
+  const text = await callGroq(prompt)
+  return extractJSON(text)
 }
 
 // ── 8. Résumé personnalisé pour un membre ─────────────────────

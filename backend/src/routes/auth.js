@@ -1,81 +1,117 @@
 "use strict";
-const express  = require("express");
-const router   = express.Router();
-const jwt      = require("jsonwebtoken");
-const axios    = require("axios");
-const { upsertUser, saveSession } = require("../database/db");
 
-const JWT_SECRET  = process.env.JWT_SECRET;
-const OP_BASE_URL = process.env.OP_BASE_URL;
+const express    = require("express");
+const router     = express.Router();
+const axios      = require("axios");
+const jwt        = require("jsonwebtoken");
+const { db, upsertUser, saveSession, clearSession } = require("../database/db");
+const verifyToken = require("../middleware/auth");
 
+const BASE_URL   = process.env.OP_BASE_URL;
+const JWT_SECRET = process.env.JWT_SECRET;
+
+// ─────────────────────────────────────────────────────────────
+//  POST /api/auth/login
+// ─────────────────────────────────────────────────────────────
 router.post("/login", async (req, res) => {
-  const { token: opToken } = req.body;
+  const rawToken = req.body?.token;
 
-  if (!opToken) {
-    return res.status(400).json({ message: "Token OpenProject obligatoire." });
+  if (!rawToken || typeof rawToken !== "string") {
+    return res.status(400).json({ message: "Veuillez entrer votre token OpenProject." });
+  }
+
+  const token = rawToken.trim();
+
+  if (token.length < 20) {
+    return res.status(400).json({ message: "Token OpenProject invalide (trop court)." });
   }
 
   try {
-    const opRes = await axios.get(`${OP_BASE_URL}/api/v3/users/me`, {
+    const opResponse = await axios.get(`${BASE_URL}/api/v3/users/me`, {
       headers: {
-        Authorization: "Basic " + Buffer.from(`apikey:${opToken}`).toString("base64"),
+        Authorization: "Basic " + Buffer.from(`apikey:${token}`).toString("base64"),
         "Content-Type": "application/json",
       },
       timeout: 10000,
     });
 
-    const opUser  = opRes.data;
+    const opUser = opResponse.data;
+
     const userId  = opUser.id;
+    const name    = opUser.name;
+    const email   = opUser.email;
     const isAdmin = opUser.admin === true;
 
-    // ✅ Sauvegarder l'utilisateur en base
-    upsertUser(userId, {
-      name:    opUser.name,
-      email:   opUser.email,
-      isAdmin,
-    });
+    upsertUser(userId, { name, email, isAdmin });
+    saveSession(userId, { opToken: token, isAdmin, deviceId: "web" });
 
-    // ✅ Sauvegarder la session avec le bon format objet
-    saveSession(userId, {
-      opToken,
-      isAdmin,
-      deviceId: "web",
-    });
-
+    // ✅ email et name ajoutés dans le payload JWT
     const jwtToken = jwt.sign(
-      { userId, isAdmin },
+      { userId, isAdmin, email, name },
       JWT_SECRET,
       { expiresIn: "8h" }
     );
 
-    res.json({
+    return res.status(200).json({
+      message: "Connexion réussie.",
       jwt:   jwtToken,
       token: jwtToken,
-      user: {
-        id:      userId,
-        name:    opUser.name,
-        email:   opUser.email,
-        isAdmin,
-      },
+      user: { id: userId, name, email, isAdmin },
     });
 
-  } catch (err) {
-    if (err.response?.status === 401) {
-      return res.status(401).json({ message: "Token OpenProject invalide." });
+  } catch (error) {
+    if (error.response?.status === 401) {
+      return res.status(401).json({ message: "Token OpenProject invalide ou expiré." });
     }
-    if (err.response?.status === 404) {
+    if (error.response?.status === 404) {
       return res.status(500).json({ message: "URL OpenProject incorrecte — vérifiez OP_BASE_URL dans .env" });
     }
-    if (err.code === "ECONNREFUSED" || err.code === "ENOTFOUND") {
-      return res.status(503).json({ message: "Impossible de joindre OpenProject. Vérifiez Docker." });
+    if (
+      error.code === "ECONNREFUSED" ||
+      error.code === "ENOTFOUND"    ||
+      error.code === "ETIMEDOUT"
+    ) {
+      return res.status(503).json({
+        message: "Impossible de joindre OpenProject. Vérifiez la configuration serveur.",
+      });
     }
-    console.error("Erreur login:", err.message);
-    res.status(500).json({ message: "Erreur serveur lors de la connexion." });
+    console.error("Erreur login:", error.message);
+    return res.status(500).json({ message: "Erreur interne du serveur." });
   }
 });
 
-router.post("/logout", (req, res) => {
-  res.json({ message: "Déconnecté." });
+// ─────────────────────────────────────────────────────────────
+//  POST /api/auth/logout
+// ─────────────────────────────────────────────────────────────
+router.post("/logout", verifyToken, (req, res) => {
+  try {
+    clearSession(req.user.userId);
+  } catch {
+    // Session déjà inexistante — pas grave
+  }
+  return res.status(200).json({ message: "Déconnexion réussie." });
+});
+
+// ─────────────────────────────────────────────────────────────
+//  PATCH /api/auth/fcm-token
+// ─────────────────────────────────────────────────────────────
+router.patch("/fcm-token", verifyToken, (req, res) => {
+  const { fcmToken } = req.body;
+  const userId = req.user.userId;
+
+  if (!fcmToken) return res.status(400).json({ message: "Token FCM manquant." });
+
+  try {
+    db.prepare(`
+      UPDATE current_session 
+      SET fcm_token = ? 
+      WHERE op_user_id = ?
+    `).run(fcmToken, userId);
+
+    res.json({ message: "FCM token sauvegardé." });
+  } catch (err) {
+    res.status(500).json({ message: "Erreur.", detail: err.message });
+  }
 });
 
 module.exports = router;

@@ -45,22 +45,53 @@ export default function TaskAI({ task }) {
   }
 
   const loadBlockage = async () => {
-    if (blockage) { setActiveTab('blockage'); return }
-    setBlockageLoading(true); setError(null)
-    try {
-      const data = await fetchTaskBlockage({
-       title: task.subject,
-       description: task.description?.raw || task.subject,
-       status: task._links?.status?.title || 'Nouveau',
-       daysStuck: null
-      })
-setBlockage(data)
-      setActiveTab('blockage')
-    } catch (err) {
-      setError(err.response?.data?.message || 'Erreur IA')
+  if (blockage) { setActiveTab('blockage'); return }
+  setBlockageLoading(true); setError(null)
+  try {
+
+    // ── Calcul de l'urgence RÉELLE ──────────────────────────
+    const isBlocked  = Boolean(task.isBlocked)
+    const dependsOn  = task.dependsOn || []
+    const dueDate    = task.dueDate ? new Date(task.dueDate) : null
+    const now        = new Date()
+    const isLate     = dueDate && dueDate < now
+    const daysLeft   = dueDate 
+      ? Math.ceil((dueDate - now) / (1000 * 60 * 60 * 24)) 
+      : null
+
+    // urgence calculée par le frontend, pas par l'AI
+    let urgency = 'faible'
+    if (isBlocked) {
+      if (isLate)              urgency = 'haute'
+      else if (daysLeft <= 3)  urgency = 'haute'
+      else if (daysLeft <= 7)  urgency = 'moyenne'
+      else                     urgency = 'faible'
     }
-    setBlockageLoading(false)
+
+    // daysStuck = jours depuis la dernière mise à jour
+    const updatedAt = task.updatedAt ? new Date(task.updatedAt) : null
+    const daysStuck = updatedAt 
+      ? Math.floor((now - updatedAt) / (1000 * 60 * 60 * 24)) 
+      : null
+
+    const data = await fetchTaskBlockage({
+      title:       task.subject,
+      description: task.description?.raw || task.subject,
+      status:      task._links?.status?.title || 'Nouveau',
+      daysStuck,
+      isBlocked,
+      dependsOn,   // ← vraies dépendances
+    })
+
+    // On remplace l'urgence de l'AI par notre calcul réel
+    setBlockage({ ...data, urgency, isBlocked })
+    setActiveTab('blockage')
+
+  } catch (err) {
+    setError(err.response?.data?.message || 'Erreur IA')
   }
+  setBlockageLoading(false)
+}
 
   const urgencyColor = { 'faible': '#22c55e', 'moyenne': '#f59e0b', 'haute': '#ef4444' }
   const priorityColor = { 'haute': '#ef4444', 'moyenne': '#f59e0b', 'faible': '#22c55e' }
@@ -148,7 +179,7 @@ setBlockage(data)
         <div style={{ background: '#fef2f2', borderRadius: '8px', padding: '1rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '0.8rem' }}>
             <p style={{ fontWeight: '600', color: '#dc2626', fontSize: '14px' }}>
-              {blockage.isBlocked ? '🔴 Tâche potentiellement bloquée' : '🟢 Aucun blocage détecté'}
+              {blockage.isBlocked ? '🔴 Tâche bloquée' : '🟢 Aucun blocage détecté'}
             </p>
             <span style={{ background: urgencyColor[blockage.urgency] || '#6b7280', color: 'white', fontSize: '11px', padding: '2px 8px', borderRadius: '10px', fontWeight: '600' }}>
               Urgence : {blockage.urgency}

@@ -1,20 +1,9 @@
 "use strict";
 
-// ══════════════════════════════════════════════════════════════════════════════
-//  Middleware — vérification du JWT LightProject
-//
-//  CORRECTIONS APPORTÉES :
-//    - Vérification que JWT_SECRET est défini au démarrage
-//    - Messages d'erreur distincts pour token manquant / format invalide /
-//      expiré / signature incorrecte
-//    - req.user enrichi avec les champs complets du payload JWT
-// ══════════════════════════════════════════════════════════════════════════════
-
 const jwt = require("jsonwebtoken");
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
-// Vérification au démarrage — pas à l'exécution de chaque requête
 if (!JWT_SECRET) {
   console.error("FATAL : JWT_SECRET manquant dans .env. Le serveur va s'arrêter.");
   process.exit(1);
@@ -22,7 +11,7 @@ if (!JWT_SECRET) {
 
 /**
  * Vérifie le Bearer JWT sur toutes les routes protégées.
- * Attache req.user = { userId, isAdmin, iat, exp } si valide.
+ * Attache req.user = { userId, isAdmin, email, name, iat, exp } si valide.
  */
 function verifyToken(req, res, next) {
   const authHeader = req.headers["authorization"];
@@ -39,7 +28,7 @@ function verifyToken(req, res, next) {
     });
   }
 
-  const token = authHeader.slice(7).trim(); // plus robuste que split(" ")[1]
+  const token = authHeader.slice(7).trim();
 
   if (!token) {
     return res.status(401).json({ message: "Token vide après 'Bearer '." });
@@ -47,7 +36,7 @@ function verifyToken(req, res, next) {
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
-    req.user = decoded; // { userId, isAdmin, iat, exp }
+    req.user = decoded; // { userId, isAdmin, email, name, iat, exp }
     next();
   } catch (err) {
     if (err.name === "TokenExpiredError") {
@@ -56,7 +45,6 @@ function verifyToken(req, res, next) {
     if (err.name === "JsonWebTokenError") {
       return res.status(401).json({ message: "Token JWT invalide." });
     }
-    // Autre erreur inattendue
     return res.status(401).json({ message: "Erreur d'authentification." });
   }
 }

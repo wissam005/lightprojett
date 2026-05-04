@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
-
+import GanttPage               from "./pages/GanttPage";
 import LoginPage               from "./pages/LoginPage";
 import Dashboard               from "./pages/Dashboard";
 import ProjectsPage            from "./pages/ProjectsPage";
@@ -90,6 +90,8 @@ export default function App() {
       <Route path="/taches" element={<MyTasksPage />} />
     
       <Route path="/rapports" element={<ReportsPage />} />
+
+      <Route path="/gantt" element={<GanttPage />} />
 
       {/* Budget */}
       <Route path="/budget" element={user?.isAdmin ? <ManagerBudgetPanel /> : <MemberBudgetPanel />} />

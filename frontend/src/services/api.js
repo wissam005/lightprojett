@@ -360,12 +360,63 @@ export async function deleteTimeLog(taskId, logId, projectId) {
 // ══════════════════════════════════════════════════════════════
 //  DÉPENDANCES
 // ══════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════════════
+//  api.js — correctif à appliquer dans services/api.js
+//
+//  CHANGEMENTS :
+//  1. timeout global : 15_000 → 45_000 ms
+//     Les appels getDependencies + getTimeLogs en séquence sur 3 tâches
+//     prenaient >15s → TIMEOUT. 45s couvre les cas lents sans bloquer indéfiniment.
+//
+//  2. Instance dédiée `apiDep` pour les dépendances avec timeout 30s
+//     Les appels de dépendances passent par OpenProject qui peut être lent.
+//     On les isole pour ne pas impacter les autres endpoints avec un timeout plus long.
+// ══════════════════════════════════════════════════════════════════════════════
+
+// ── REMPLACE la ligne timeout dans la config axios principale ─────────────────
+// AVANT :
+//   timeout: 15000,
+// APRÈS :
+//   timeout: 45000,
+
+// ── REMPLACE les fonctions fetchDependencies, addDependency, removeDependency ──
+
+// Instance dédiée avec timeout plus long pour les dépendances
+// (OpenProject peut mettre du temps à recalculer les statuts bloqués)
+const apiDep = axios.create({
+  baseURL: process.env.REACT_APP_API_URL || "https://localhost:5001",
+  timeout: 30_000,
+  headers: { "Content-Type": "application/json" },
+});
+
+// Reprend le même intercepteur auth que `api`
+apiDep.interceptors.request.use(
+  (config) => {
+    const jwt = localStorage.getItem("jwt");
+    if (jwt) config.headers["Authorization"] = `Bearer ${jwt}`;
+    return config;
+  },
+  (error) => Promise.reject(normalizeError(error))
+);
+
+apiDep.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const normalized = normalizeError(error);
+    if (normalized.code === 401) {
+      localStorage.removeItem("jwt");
+      localStorage.removeItem("user");
+      window.location.href = "/";
+    }
+    return Promise.reject(normalized);
+  }
+);
 
 export async function fetchDependencies(taskId, projectId) {
   if (!taskId)    throw new Error("taskId manquant.");
   if (!projectId) throw new Error("projectId manquant.");
 
-  const res = await api.get(`/api/dependencies/${taskId}`, {
+  const res = await apiDep.get(`/api/dependencies/${taskId}`, {
     params: { projectId },
   });
   return res.data;
@@ -375,7 +426,7 @@ export async function addDependency(taskId, dependsOnTaskId, projectId) {
   if (!taskId || !dependsOnTaskId || !projectId)
     throw new Error("taskId, dependsOnTaskId et projectId sont obligatoires.");
 
-  const res = await api.post("/api/dependencies", {
+  const res = await apiDep.post("/api/dependencies", {
     taskId:          Number(taskId),
     dependsOnTaskId: Number(dependsOnTaskId),
     projectId:       Number(projectId),
@@ -389,7 +440,7 @@ export async function removeDependency(taskId, dependsOnTaskId, projectId) {
   if (!taskId || !dependsOnTaskId || !projectId)
     throw new Error("taskId, dependsOnTaskId et projectId sont obligatoires.");
 
-  const res = await api.delete("/api/dependencies", {
+  const res = await apiDep.delete("/api/dependencies", {
     data: {
       taskId:          Number(taskId),
       dependsOnTaskId: Number(dependsOnTaskId),
@@ -400,7 +451,6 @@ export async function removeDependency(taskId, dependsOnTaskId, projectId) {
   invalidateCache(`tasks:`);
   return res.data;
 }
-
 // ══════════════════════════════════════════════════════════════
 //  BUDGET
 // ══════════════════════════════════════════════════════════════
@@ -603,3 +653,20 @@ export const getReports = () =>
 // Générer un nouveau rapport IA
 export const generateReport = (projects, selectedProjectNames = null) =>
   api.post("/api/ai/report", { projects, selectedProjectNames }).then(r => r.data);
+export const getAllMembers             = async () => ({ data: await fetchMembers() });
+export const getNotifications         = async (params) => ({ data: await fetchNotifications(params) });
+export const getNotificationCount     = async () => fetchNotificationCount();
+export const getBudgetSummary         = fetchBudgetSummary;
+export const getBudgetTasks           = fetchBudgetByTask;
+export const getBudgetTimeline        = fetchBudgetTimeline;
+export const getDependencies          = fetchDependencies;
+export const getTimeLogs              = fetchTimeLogs;
+export const getAllMembersList        = fetchMembers;
+export const creerTache               = createTask;
+export const creerSousProjet          = createSubProject;
+export const deleteDependency         = removeDependency;
+export const updateProjectBudget      = updateBudget;
+export const updateTaskMemberRate     = setTaskMemberRate;
+export const updateTaskEstimatedHours = setTaskEstimatedHours;
+export const removeMember             = removeProjectMember;
+export const syncProject              = async (projectId) => api.post(`/api/projects/${projectId}/sync`).then(r => r.data);

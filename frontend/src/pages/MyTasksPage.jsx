@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { fetchProjects, fetchTasks, patchTask } from "../services/api";
 import { useNavigate } from "react-router-dom";
+import Sidebar from "./Sidebar";
 
 function formatDate(dateStr) {
   if (!dateStr) return "—";
@@ -125,51 +126,7 @@ export default function MyTasksPage({ user }) {
 
   return (
     <div style={{ display: "grid", gridTemplateColumns: "220px 1fr", minHeight: "100vh", background: C.bg, fontFamily: "'Segoe UI', Arial, sans-serif" }}>
-
-      {/* ══ SIDEBAR ══ */}
-      <aside style={{ background: "#fff", borderRight: `1px solid ${C.border}`, padding: "24px 0", display: "flex", flexDirection: "column", justifyContent: "space-between", position: "sticky", top: 0, height: "100vh", overflowY: "auto", boxShadow: "2px 0 8px rgba(0,0,0,0.03)" }}>
-        <div>
-          <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "0 20px 28px" }}>
-            <div style={{ width: "32px", height: "32px", borderRadius: "10px", background: C.green, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "16px", boxShadow: `0 2px 8px ${C.greenMid}` }}>🐝</div>
-            <span style={{ fontSize: "16px", fontWeight: "700", color: C.text }}>lightproject</span>
-          </div>
-          <div style={{ padding: "0 12px" }}>
-            {[
-              { label: "Dashboard",   path: "/dashboard"         },
-              { label: "Mes projets", path: "/projets"           },
-              { label: "Mes tâches",  path: "/taches", active: true },
-              { label: "Analyse IA",  path: "/ai"                },
-            ].map(item => (
-              <div key={item.path} onClick={() => navigate(item.path)}
-                style={{ padding: "10px 14px", borderRadius: "12px", fontSize: "13px", cursor: "pointer", marginBottom: "3px",
-                  color:      item.active ? C.greenDark  : C.textMuted,
-                  background: item.active ? C.greenLight : "transparent",
-                  fontWeight: item.active ? "600"        : "400",
-                  borderLeft: item.active ? `3px solid ${C.green}` : "3px solid transparent",
-                  transition: "all 0.15s" }}>
-                {item.label}
-              </div>
-            ))}
-          </div>
-          <div style={{ height: "1px", background: C.border, margin: "16px" }} />
-          <div style={{ padding: "0 12px" }}>
-            <p style={{ fontSize: "10px", color: C.textLight, textTransform: "uppercase", letterSpacing: "1px", padding: "0 14px", margin: "0 0 6px" }}>Compte</p>
-            <div style={{ padding: "10px 14px", borderRadius: "12px", fontSize: "13px", color: C.textMuted, cursor: "pointer" }} onClick={() => navigate("/profil")}>Mon profil</div>
-            <div style={{ padding: "10px 14px", borderRadius: "12px", fontSize: "13px", color: C.pink, cursor: "pointer", fontWeight: "500" }} onClick={handleLogout}>Déconnexion</div>
-          </div>
-        </div>
-        <div style={{ margin: "0 16px" }}>
-          <div style={{ background: C.greenLight, borderRadius: "14px", padding: "12px", display: "flex", alignItems: "center", gap: "10px", border: `1px solid ${C.greenMid}` }}>
-            <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: C.green, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "15px", fontWeight: "700", color: "#fff", flexShrink: 0 }}>
-              {storedUser.name?.charAt(0)?.toUpperCase() || "?"}
-            </div>
-            <div>
-              <p style={{ fontSize: "13px", fontWeight: "600", color: C.text, margin: 0 }}>{storedUser.name || "Membre"}</p>
-              <p style={{ fontSize: "11px", color: C.textMuted, margin: 0 }}>{storedUser.isAdmin ? "Administrateur" : "Membre"}</p>
-            </div>
-          </div>
-        </div>
-      </aside>
+    <Sidebar activePath="/taches" onLogout={handleLogout} />
 
       {/* ══ MAIN ══ */}
       <main style={{ padding: "28px", overflowY: "auto" }}>

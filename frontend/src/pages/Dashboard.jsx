@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { getProjets, getStats, getAllMembers, getTaches, logout } from "../services/api";
+import Sidebar from "./Sidebar";
 import {
   getNotifications, getNotificationCount, markNotificationRead,
   markAllNotificationsRead, deleteNotification,
@@ -35,126 +36,6 @@ function fmtDate(d) {
   const dt = new Date(d);
   if (isNaN(dt.getTime())) return null;
   return dt.toLocaleDateString("fr-FR",{day:"2-digit",month:"short"});
-}
-
-function NotificationBell({ C }) {
-  const navigate = useNavigate();
-  const [open, setOpen] = useState(false);
-  const [notifs, setNotifs] = useState([]);
-  const [count, setCount] = useState(0);
-  const [loading, setLoading] = useState(false);
-  const [filter, setFilter] = useState("all");
-  const ref = useRef(null);
-
-  useEffect(() => {
-    const fn = e => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
-    document.addEventListener("mousedown", fn);
-    return () => document.removeEventListener("mousedown", fn);
-  }, []);
-
-  const loadCount = useCallback(async () => {
-    try { const r = await getNotificationCount(); setCount(r.data?.count ?? 0); } catch {}
-  }, []);
-
-  useEffect(() => { loadCount(); const id = setInterval(loadCount,30000); return () => clearInterval(id); }, [loadCount]);
-
-  const loadNotifs = useCallback(async () => {
-    setLoading(true);
-    try {
-      const r = await getNotifications({ unreadOnly: filter==="unread" });
-      setNotifs(r.data?.notifications ?? r.data ?? []);
-    } catch {} finally { setLoading(false); }
-  }, [filter]);
-
-  useEffect(() => { if (open) loadNotifs(); }, [open, loadNotifs]);
-
-  const handleMarkRead = async id => {
-    await markNotificationRead(id);
-    setNotifs(p => p.map(n => n.id===id ? {...n, is_read:1} : n));
-    setCount(c => Math.max(0,c-1));
-  };
-  const handleMarkAll = async () => {
-    await markAllNotificationsRead();
-    setNotifs(p => p.map(n => ({...n, is_read:1}))); setCount(0);
-  };
-  const handleDelete = async (id, wasUnread) => {
-    await deleteNotification(id);
-    setNotifs(p => p.filter(n => n.id!==id));
-    if (wasUnread) setCount(c => Math.max(0,c-1));
-  };
-
-  const displayed = filter==="unread" ? notifs.filter(n=>n.is_read===0) : notifs;
-
-  return (
-    <div ref={ref} style={{position:"relative"}}>
-      <button onClick={()=>setOpen(o=>!o)} title="Notifications" style={{
-        position:"relative", background:open?C.greenLight:"#fff",
-        border:`1px solid ${open?C.greenMid:C.border}`, borderRadius:"999px",
-        width:"36px", height:"36px", display:"flex", alignItems:"center", justifyContent:"center",
-        cursor:"pointer", fontSize:"16px", boxShadow:C.shadow,
-      }}>
-        🔔
-        {count>0 && <span style={{position:"absolute",top:"-5px",right:"-5px",background:"#b23a3a",color:"#fff",fontSize:"9px",fontWeight:"700",borderRadius:"10px",minWidth:"16px",height:"16px",display:"flex",alignItems:"center",justifyContent:"center",padding:"0 3px",border:"2px solid #f6f6f2"}}>{count>99?"99+":count}</span>}
-      </button>
-
-      {open && (
-        <div style={{position:"absolute",top:"calc(100% + 10px)",right:0,width:"360px",maxHeight:"500px",background:"#fff",border:`1px solid ${C.border}`,borderRadius:"18px",boxShadow:"0 12px 40px rgba(0,0,0,0.12)",display:"flex",flexDirection:"column",overflow:"hidden",zIndex:9999,fontFamily:"'Segoe UI',Arial,sans-serif"}}>
-          <div style={{padding:"14px 16px 10px",borderBottom:`1px solid ${C.border}`,display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0}}>
-            <span style={{fontWeight:700,fontSize:14,color:C.text}}>
-              Notifications
-              {count>0 && <span style={{background:"#b23a3a",color:"#fff",fontSize:10,borderRadius:"10px",padding:"1px 6px",marginLeft:6}}>{count}</span>}
-            </span>
-            <div style={{display:"flex",gap:6}}>
-              {count>0 && <button onClick={handleMarkAll} style={{background:"transparent",border:`1px solid ${C.blue}44`,borderRadius:"7px",color:C.blue,fontSize:10,fontWeight:600,padding:"2px 8px",cursor:"pointer"}}>Tout lire</button>}
-            </div>
-          </div>
-          <div style={{display:"flex",gap:4,padding:"8px 12px",borderBottom:`1px solid ${C.border}`,flexShrink:0}}>
-            {["all","unread"].map(f=>(
-              <button key={f} onClick={()=>setFilter(f)} style={{background:filter===f?C.greenLight:"transparent",border:`1px solid ${filter===f?C.greenMid:"transparent"}`,borderRadius:"7px",color:filter===f?C.greenDark:C.textMuted,fontSize:11,fontWeight:600,padding:"3px 10px",cursor:"pointer"}}>
-                {f==="all"?"Toutes":"Non lues"}
-              </button>
-            ))}
-          </div>
-          <div style={{overflowY:"auto",flex:1}}>
-            {loading ? (
-              <div style={{padding:32,textAlign:"center",color:C.textLight,fontSize:13}}>Chargement…</div>
-            ) : displayed.length===0 ? (
-              <div style={{padding:"36px 20px",textAlign:"center"}}>
-                <div style={{fontSize:28,marginBottom:8}}>🎉</div>
-                <div style={{color:C.textMuted,fontSize:13}}>{filter==="unread"?"Aucune notification non lue.":"Aucune notification."}</div>
-              </div>
-            ) : displayed.map(n => {
-              const cfg = NOTIF_CONFIG[n.type]||{icon:"📌",color:C.blue,label:"Info"};
-              return (
-                <div key={n.id} onClick={()=>n.is_read===0&&handleMarkRead(n.id)}
-                  style={{display:"flex",alignItems:"flex-start",gap:10,padding:"11px 14px",borderBottom:`1px solid ${C.border}`,background:n.is_read===0?C.greenLight:"transparent",cursor:n.is_read===0?"pointer":"default"}}>
-                  <div style={{width:30,height:30,borderRadius:"8px",background:cfg.color+"18",border:`1px solid ${cfg.color}33`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,flexShrink:0}}>{cfg.icon}</div>
-                  <div style={{flex:1,minWidth:0}}>
-                    <div style={{fontSize:10,fontWeight:700,color:cfg.color,marginBottom:2,textTransform:"uppercase",letterSpacing:"0.05em"}}>
-                      {cfg.label}
-                      {n.is_read===0 && <span style={{display:"inline-block",width:5,height:5,borderRadius:"50%",background:"#b23a3a",marginLeft:5,verticalAlign:"middle"}}/>}
-                    </div>
-                    <div style={{fontSize:12,color:n.is_read===0?C.text:C.textMuted,lineHeight:1.5,wordBreak:"break-word"}}>{n.message}</div>
-                    <div style={{fontSize:10,color:C.textLight,marginTop:4}}>{timeAgo(n.created_at)}</div>
-                  </div>
-                  <button onClick={e=>{e.stopPropagation();handleDelete(n.id,n.is_read===0);}}
-                    style={{background:"none",border:"none",color:C.textLight,cursor:"pointer",fontSize:13,padding:"1px 3px",borderRadius:4,flexShrink:0}}>✕</button>
-                </div>
-              );
-            })}
-          </div>
-          <div style={{padding:"10px 16px",borderTop:`1px solid ${C.border}`,textAlign:"center",flexShrink:0}}>
-            <button onClick={()=>{setOpen(false);navigate("/notifications");}}
-              style={{background:"none",border:"none",color:C.textMuted,fontSize:11,cursor:"pointer"}}
-              onMouseEnter={e=>e.currentTarget.style.color=C.greenDark}
-              onMouseLeave={e=>e.currentTarget.style.color=C.textMuted}>
-              ⚙️ Paramètres de notifications
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
 }
 
 export default function Dashboard() {
@@ -282,47 +163,7 @@ export default function Dashboard() {
 
   return (
     <div style={{display:"flex",height:"100vh",background:C.bg,fontFamily:"'Segoe UI',Arial,sans-serif",overflow:"hidden"}}>
-
-      {/* ── SIDEBAR ── */}
-      <aside style={{flexShrink:0,width:"220px",height:"100%",background:"#fff",borderRight:`1px solid ${C.border}`,padding:"24px 0",display:"flex",flexDirection:"column",justifyContent:"space-between",overflowY:"auto",boxShadow:"2px 0 8px rgba(0,0,0,0.03)"}}>
-        <div>
-          <div style={{display:"flex",alignItems:"center",gap:"10px",padding:"0 20px 28px"}}>
-            <div style={{width:"32px",height:"32px",borderRadius:"10px",background:C.green,display:"flex",alignItems:"center",justifyContent:"center",fontSize:"16px"}}>🐝</div>
-            <span style={{fontSize:"16px",fontWeight:"700",color:C.text}}>lightproject</span>
-          </div>
-          <nav style={{padding:"0 12px"}}>
-            {[
-              {label:"Dashboard",   path:"/dashboard", active:true},
-              {label:"Mes projets", path:"/projets"},
-              {label:"Mes tâches",  path:"/taches"},
-              { label:"Rapports IA", path:"/rapports" },
-                { label:"Gantt",       path:"/gantt" },
-            ].map(item=>(
-              <div key={item.path} onClick={()=>navigate(item.path)} style={{padding:"10px 14px",borderRadius:"12px",fontSize:"13px",cursor:"pointer",marginBottom:"3px",color:item.active?C.greenDark:C.textMuted,background:item.active?C.greenLight:"transparent",fontWeight:item.active?"600":"400",borderLeft:item.active?`3px solid ${C.green}`:"3px solid transparent",transition:"all 0.15s"}}>
-                {item.label}
-              </div>
-            ))}
-          </nav>
-          <div style={{height:"1px",background:C.border,margin:"16px"}}/>
-          <div style={{padding:"0 12px"}}>
-            <p style={{fontSize:"10px",color:C.textLight,textTransform:"uppercase",letterSpacing:"1px",padding:"0 14px",margin:"0 0 6px"}}>Compte</p>
-            <div style={{padding:"10px 14px",borderRadius:"12px",fontSize:"13px",color:C.textMuted,cursor:"pointer"}} onClick={()=>navigate("/profil")}>Mon profil</div>
-            <div style={{padding:"10px 14px",borderRadius:"12px",fontSize:"13px",color:C.pink,cursor:"pointer",fontWeight:"500"}} onClick={handleLogout}>Déconnexion</div>
-          </div>
-        </div>
-        <div style={{margin:"0 16px"}}>
-          <div style={{background:C.greenLight,borderRadius:"14px",padding:"12px",display:"flex",alignItems:"center",gap:"10px",border:`1px solid ${C.greenMid}`}}>
-            <div style={{width:"36px",height:"36px",borderRadius:"50%",background:C.green,display:"flex",alignItems:"center",justifyContent:"center",fontSize:"15px",fontWeight:"700",color:"#fff",flexShrink:0}}>
-              {user.name?.charAt(0)?.toUpperCase()||"A"}
-            </div>
-            <div style={{minWidth:0}}>
-              <p style={{fontSize:"13px",fontWeight:"600",color:C.text,margin:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{user.name||"Admin"}</p>
-              <p style={{fontSize:"11px",color:C.textMuted,margin:0}}>{user.isAdmin?"Administrateur":"Membre"}</p>
-            </div>
-          </div>
-        </div>
-      </aside>
-
+    <Sidebar activePath="/dashboard" onLogout={handleLogout} />
       {/* ── MAIN ── */}
       <main style={{flex:1,minWidth:0,height:"100%",overflowY:"auto",overflowX:"hidden",padding:"20px 24px"}}>
 
@@ -344,7 +185,6 @@ export default function Dashboard() {
                 + Nouveau projet
               </button>
             )}
-            <NotificationBell C={C}/>
             <div style={{width:"34px",height:"34px",borderRadius:"50%",background:C.green,display:"flex",alignItems:"center",justifyContent:"center",fontSize:"13px",fontWeight:"700",color:"#fff"}}>
               {user.name?.charAt(0)?.toUpperCase()||"A"}
             </div>

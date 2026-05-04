@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { fetchProjects, fetchStats } from "../services/api";
+import Sidebar from "./Sidebar";
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
 const C = {
@@ -102,6 +103,11 @@ const HEAD_H  = 56;
 export default function GanttPage() {
   const navigate    = useNavigate();
   const user        = JSON.parse(localStorage.getItem("user") || "{}");
+  const handleLogout = () => {
+  localStorage.removeItem("jwt");
+  localStorage.removeItem("user");
+  navigate("/");
+};
   const scrollRef   = useRef(null);
 
   const [projects,   setProjects]   = useState([]);
@@ -403,58 +409,7 @@ export default function GanttPage() {
       fontFamily: "'Segoe UI', Arial, sans-serif", overflow: "hidden",
     }}>
 
-      {/* ── SIDEBAR ── */}
-      <aside style={{
-        flexShrink: 0, width: "220px", height: "100%",
-        background: "#fff", borderRight: `1px solid ${C.border}`,
-        padding: "24px 0", display: "flex", flexDirection: "column",
-        justifyContent: "space-between", overflowY: "auto",
-        boxShadow: "2px 0 8px rgba(0,0,0,0.03)",
-      }}>
-        <div>
-          <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "0 20px 28px" }}>
-            <div style={{ width: "32px", height: "32px", borderRadius: "10px", background: C.green, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "16px" }}>🐝</div>
-            <span style={{ fontSize: "16px", fontWeight: "700", color: C.text }}>lightproject</span>
-          </div>
-          <nav style={{ padding: "0 12px" }}>
-            {navItems.map(item => (
-              <div key={item.path} onClick={() => navigate(item.path)} style={{
-                padding: "10px 14px", borderRadius: "12px", fontSize: "13px",
-                cursor: "pointer", marginBottom: "3px",
-                color:      item.active ? C.greenDark  : C.textMuted,
-                background: item.active ? C.greenLight : "transparent",
-                fontWeight: item.active ? "600"        : "400",
-                borderLeft: item.active ? `3px solid ${C.green}` : "3px solid transparent",
-                transition: "all 0.15s",
-              }}>
-                {item.label}
-              </div>
-            ))}
-          </nav>
-          <div style={{ height: "1px", background: C.border, margin: "16px" }} />
-          <div style={{ padding: "0 12px" }}>
-            <p style={{ fontSize: "10px", color: C.textLight, textTransform: "uppercase", letterSpacing: "1px", padding: "0 14px", margin: "0 0 6px" }}>Compte</p>
-            <div style={{ padding: "10px 14px", borderRadius: "12px", fontSize: "13px", color: C.textMuted, cursor: "pointer" }}
-              onClick={() => navigate("/profil")}>Mon profil</div>
-            <div style={{ padding: "10px 14px", borderRadius: "12px", fontSize: "13px", color: C.pink, cursor: "pointer", fontWeight: "500" }}
-              onClick={() => { localStorage.removeItem("jwt"); localStorage.removeItem("user"); navigate("/"); }}>
-              Déconnexion
-            </div>
-          </div>
-        </div>
-        <div style={{ margin: "0 16px" }}>
-          <div style={{ background: C.greenLight, borderRadius: "14px", padding: "12px", display: "flex", alignItems: "center", gap: "10px", border: `1px solid ${C.greenMid}` }}>
-            <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: C.green, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "15px", fontWeight: "700", color: "#fff", flexShrink: 0 }}>
-              {user.name?.charAt(0)?.toUpperCase() || "A"}
-            </div>
-            <div style={{ minWidth: 0 }}>
-              <p style={{ fontSize: "13px", fontWeight: "600", color: C.text, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user.name || "Admin"}</p>
-              <p style={{ fontSize: "11px", color: C.textMuted, margin: 0 }}>{user.isAdmin ? "Administrateur" : "Membre"}</p>
-            </div>
-          </div>
-        </div>
-      </aside>
-
+    <Sidebar activePath="/gantt" onLogout={handleLogout} />
       {/* ── MAIN ── */}
       <main style={{ flex: 1, minWidth: 0, height: "100%", overflowY: "auto", overflowX: "hidden", padding: "20px 24px" }}>
 

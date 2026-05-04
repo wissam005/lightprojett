@@ -14,7 +14,7 @@ async function callGroq(prompt, maxTokens = 1024) {
   const response = await client.chat.completions.create({
     model: "llama-3.3-70b-versatile",
     messages: [{ role: "user", content: prompt }],
-    temperature: 0.1,
+    temperature: 0.2,
     max_tokens: maxTokens,
   });
   console.log("✅ Réponse Groq reçue");
@@ -45,11 +45,8 @@ JSON attendu :
     {"title": "Titre tâche", "description": "Description courte", "estimatedHours": 4, "type": "Développement"}
   ]
 }
-Analyse attentivement la description du projet et génère le nombre de tâches EXACT nécessaire pour réaliser ce projet complètement.
-Ne génère ni trop peu ni trop — si le projet est simple génère 2-3 tâches, si il est complexe génère 10-15 tâches ou plus.
-Le nombre de tâches doit être justifié par la complexité réelle du projet décrit.
+Analyse attentivement la description du projet et génère le nombre de tâches EXACT nécessaire.
 Types autorisés : Analyse, Développement, Test, Documentation, Déploiement.`;
-
 
   const text = await callGroq(prompt);
   const parsed = extractJSON(text);
@@ -86,49 +83,126 @@ Question : ${question}`;
   return { answer: text.trim() };
 }
 
-// ── 4. Rapport hebdomadaire ────────────────────────────────────
+// ── 4. Rapport COMPLET et PROFESSIONNEL ────────────────────────
 async function generateWeeklyReport(projects) {
-  const prompt = `Tu es un expert senior en gestion de projet. Réponds UNIQUEMENT en JSON valide, sans texte avant ou après.
+  const prompt = `Tu es un directeur de programme certifié PMP avec 15 ans d'expérience. Tu dois rédiger un rapport de suivi de portefeuille COMPLET, PROFESSIONNEL et TRÈS RICHE en contenu. Réponds UNIQUEMENT en JSON valide.
 
-Voici les données des projets à analyser :
+DONNÉES DES PROJETS :
 ${JSON.stringify(projects, null, 2)}
 
-Pour chaque projet, génère une analyse DÉTAILLÉE et SPÉCIFIQUE basée sur ses vraies données.
+CONSIGNES ABSOLUES POUR LA RÉDACTION :
 
-JSON attendu :
+1. ANALYSE (champ "analysis") : Rédige un paragraphe professionnel de MINIMUM 6 phrases qui couvre :
+   - L'état actuel précis avec TOUS les chiffres (tâches totales, terminées, en cours, en retard, bloquées)
+   - Le calcul du taux de complétion réel en pourcentage
+   - L'évaluation du rythme d'avancement (est-ce suffisant pour finir à temps ?)
+   - L'impact des tâches en retard ou bloquées sur le projet
+   - La comparaison entre heures estimées et heures réalisées si disponible
+   - Une appréciation globale de la santé du projet
+   Si les données sont limitées, enrichis l'analyse avec des observations méthodologiques pertinentes.
+
+2. RISQUES (champ "risks") : Génère EXACTEMENT 4 risques, chacun avec :
+   - Une description précise du risque (pas générique)
+   - L'impact potentiel chiffré si possible
+   - La probabilité estimée
+   Exemple : "Le taux de complétion de 20% avec 2 tâches en cours sur 5 indique un risque de non-livraison dans les délais si le rythme n'accélère pas dans les 2 prochaines semaines"
+
+3. PLAN D'ACTION (champ "actionPlan") : Génère EXACTEMENT 6 étapes avec pour chacune :
+   - Une action CONCRÈTE et MESURABLE (pas vague)
+   - La priorité (haute/moyenne/faible)
+   - Le responsable recommandé
+   - La deadline recommandée
+   - Le résultat attendu
+
+4. SUMMARY : Rédige un résumé exécutif de 5-6 phrases couvrant l'ensemble du portefeuille avec les chiffres globaux.
+
+5. POINTS FORTS : 3 points forts SPÉCIFIQUES basés sur les données réelles.
+
+6. WORKLOAD : Analyse détaillée de la charge de travail basée sur les données disponibles.
+
+JSON ATTENDU :
 {
-  "summary": "résumé global du portefeuille de projets en 2-3 phrases",
+  "summary": "résumé exécutif de 5-6 phrases avec chiffres globaux, état du portefeuille, points critiques et positifs",
+  "generatedAt": "${new Date().toISOString()}",
+  "portfolioStats": {
+    "totalProjects": ${projects.length},
+    "projectsOnTrack": 0,
+    "projectsAtRisk": 0,
+    "projectsInDanger": 0,
+    "totalTasks": 0,
+    "totalLateTasks": 0,
+    "totalBlockedTasks": 0,
+    "averageProgress": 0,
+    "totalHoursEstimated": 0,
+    "totalHoursDone": 0
+  },
   "projects": [
     {
       "name": "nom exact du projet",
-      "status": "bon" | "attention" | "danger",
-      "analysis": "paragraphe détaillé expliquant POURQUOI ce projet est dans cet état, basé sur ses chiffres réels (progression, retards, risque)",
+      "status": "bon",
+      "riskScore": 0,
+      "progress": 0,
+      "kpis": {
+        "totalTasks": 0,
+        "doneTasks": 0,
+        "lateTasks": 0,
+        "blockedTasks": 0,
+        "inProgress": 0,
+        "todoTasks": 0,
+        "totalHours": 0,
+        "doneHours": 0,
+        "completionRate": "0%",
+        "velocityComment": "commentaire sur la vélocité de l'équipe"
+      },
+      "analysis": "MINIMUM 6 phrases professionnelles et détaillées couvrant tous les aspects du projet avec les vrais chiffres",
+      "strengths": [
+        "point fort 1 spécifique avec chiffres ou observation concrète",
+        "point fort 2 spécifique avec chiffres ou observation concrète",
+        "point fort 3 spécifique avec chiffres ou observation concrète"
+      ],
       "risks": [
-        "risque futur concret si rien ne change",
-        "autre risque identifié"
+        "Risque 1 : description précise + impact potentiel + probabilité",
+        "Risque 2 : description précise + impact potentiel + probabilité",
+        "Risque 3 : description précise + impact potentiel + probabilité",
+        "Risque 4 : description précise + impact potentiel + probabilité"
       ],
       "actionPlan": [
-        {"step": 1, "action": "action concrète et précise", "priority": "haute" | "moyenne" | "faible"},
-        {"step": 2, "action": "action concrète et précise", "priority": "haute" | "moyenne" | "faible"},
-        {"step": 3, "action": "action concrète et précise", "priority": "haute" | "moyenne" | "faible"}
-      ]
+        {"step": 1, "action": "action concrète et mesurable", "priority": "haute", "owner": "Chef de projet", "deadline": "Dans 2 jours", "expectedResult": "résultat attendu de cette action"},
+        {"step": 2, "action": "action concrète et mesurable", "priority": "haute", "owner": "Équipe", "deadline": "Dans 3 jours", "expectedResult": "résultat attendu"},
+        {"step": 3, "action": "action concrète et mesurable", "priority": "moyenne", "owner": "Chef de projet", "deadline": "Dans 1 semaine", "expectedResult": "résultat attendu"},
+        {"step": 4, "action": "action concrète et mesurable", "priority": "moyenne", "owner": "Équipe", "deadline": "Dans 1 semaine", "expectedResult": "résultat attendu"},
+        {"step": 5, "action": "action concrète et mesurable", "priority": "faible", "owner": "Admin", "deadline": "Dans 2 semaines", "expectedResult": "résultat attendu"},
+        {"step": 6, "action": "action concrète et mesurable", "priority": "faible", "owner": "Chef de projet", "deadline": "Dans 2 semaines", "expectedResult": "résultat attendu"}
+      ],
+      "workloadSummary": "analyse détaillée de la charge de travail par membre si données disponibles, sinon recommandations sur l'assignation des tâches non assignées",
+      "timeline": {
+        "startDate": null,
+        "endDate": null,
+        "daysRemaining": null,
+        "isOnSchedule": true,
+        "scheduleComment": "analyse du respect du planning avec recommandations",
+        "projectedCompletion": "estimation de la date de complétion réelle basée sur la vélocité actuelle"
+      },
+      "progressionForecast": "prévision de progression pour les 2 prochaines semaines basée sur le rythme actuel"
     }
   ],
   "globalRecommendations": [
-    "recommandation transversale 1",
-    "recommandation transversale 2"
-  ]
+    "recommandation 1 : action concrète transversale avec justification",
+    "recommandation 2 : action concrète transversale avec justification",
+    "recommandation 3 : action concrète transversale avec justification",
+    "recommandation 4 : gouvernance et amélioration continue avec justification"
+  ],
+  "nextReviewDate": "date recommandée pour la prochaine revue"
 }
 
-Règles importantes :
-- status "bon" si riskScore < 20 ET lateTasks < 15% des tâches totales
-- status "attention" si riskScore entre 20-50 OU lateTasks entre 15-40%
-- status "danger" si riskScore > 50 OU lateTasks > 40%
-- L'analysis doit citer les vrais chiffres du projet (ex: "7 tâches en retard sur 12")
-- Génère exactement 3-4 étapes dans actionPlan par projet
-- Réponds en français professionnel`;
+RÈGLES DE STATUT :
+- "bon" si riskScore < 20 ET lateTasks < 15% du total
+- "attention" si riskScore 20-50 OU lateTasks 15-40%
+- "danger" si riskScore > 50 OU lateTasks > 40%
 
-  const text = await callGroq(prompt, 3000);
+IMPORTANT : Même avec peu de données, le rapport doit être riche, professionnel et apporter une vraie valeur analytique. Ne génère JAMAIS de contenu vague ou générique.`;
+
+  const text = await callGroq(prompt, 8000);
   const parsed = extractJSON(text);
   if (!parsed.summary || !Array.isArray(parsed.projects)) {
     throw new Error("Format IA invalide");
@@ -139,18 +213,15 @@ Règles importantes :
 // ── 5. Plan de travail pour une tâche ─────────────────────────
 async function generateTaskPlan(task) {
   const prompt = `Tu es un assistant de gestion de projet. Réponds UNIQUEMENT en JSON valide.
-Voici une tâche assignée à un étudiant :
+Tâche :
 - Titre : ${task.title}
 - Description : ${task.description}
 - Type : ${task.type || "Développement"}
 - Heures estimées : ${task.estimatedHours || "non défini"}
-Génère un plan de travail détaillé.
 JSON attendu :
 {
-  "summary": "résumé en 1 phrase de ce que l'étudiant doit faire",
-  "steps": [
-    {"order": 1, "title": "Titre étape", "description": "Ce qu'il faut faire", "duration": "30 min"}
-  ],
+  "summary": "résumé en 1 phrase",
+  "steps": [{"order": 1, "title": "Titre étape", "description": "Ce qu'il faut faire", "duration": "30 min"}],
   "tips": ["conseil pratique 1", "conseil pratique 2"],
   "tools": ["outil recommandé"]
 }
@@ -162,17 +233,14 @@ Génère entre 4 et 6 étapes réalistes.`;
 
 // ── 6. Guide Q&R automatique pour une tâche ───────────────────
 async function generateTaskGuide(task) {
-  const prompt = `Tu es un assistant pédagogique pour étudiants en informatique. Réponds UNIQUEMENT en JSON valide.
+  const prompt = `Tu es un assistant pédagogique. Réponds UNIQUEMENT en JSON valide.
 Tâche :
 - Titre : ${task.title}
 - Description : ${task.description}
-Génère automatiquement 4 questions-réponses qui aident l'étudiant à comprendre et réaliser cette tâche.
 JSON attendu :
 {
-  "introduction": "phrase d'introduction motivante en français",
-  "qna": [
-    {"question": "Question clé", "answer": "Réponse claire en français"}
-  ],
+  "introduction": "phrase d'introduction motivante",
+  "qna": [{"question": "Question clé", "answer": "Réponse claire"}],
   "motivation": "phrase de motivation finale"
 }
 Génère exactement 4 questions-réponses pédagogiques.`;
@@ -183,82 +251,63 @@ Génère exactement 4 questions-réponses pédagogiques.`;
 
 // ── 7. Détection de blocage d'une tâche ───────────────────────
 async function detectTaskBlockage(task) {
-  // Liste des tâches bloquantes non terminées
   const blockers = (task.dependsOn || [])
     .filter(d => !d.isDone)
     .map(d => `• #${d.taskId} "${d.title}" (statut: ${d.status})`)
-    .join('\n')
+    .join('\n');
 
   const prompt = task.isBlocked
     ? `Tu es un expert en gestion de projet. Réponds UNIQUEMENT en JSON valide.
-
-La tâche suivante est CONFIRMÉE BLOQUÉE par le système de dépendances :
-
+La tâche est BLOQUÉE :
 - Titre : ${task.title}
 - Description : ${task.description}
-- Statut actuel : ${task.status}
+- Statut : ${task.status}
 - Jours sans avancement : ${task.daysStuck || "inconnu"}
-- Bloquée par ces tâches non terminées :
-${blockers || "• Dépendances non spécifiées"}
-
-Génère un plan d'action CONCRET pour débloquer cette situation.
-
-JSON attendu :
+- Bloquée par : ${blockers || "dépendances non spécifiées"}
+JSON :
 {
   "isBlocked": true,
-  "reason": "explication précise basée sur les tâches bloquantes listées",
-  "solutions": [
-    {"title": "Solution 1", "description": "action concrète", "priority": "haute"}
-  ],
+  "reason": "explication précise",
+  "solutions": [{"title": "Solution", "description": "action concrète", "priority": "haute"}],
   "urgency": "ignoré"
 }
-Génère exactement 3 solutions concrètes. urgency sera ignoré car calculé par le système.`
-
+Génère 3 solutions concrètes.`
     : `Tu es un expert en gestion de projet. Réponds UNIQUEMENT en JSON valide.
-
-La tâche suivante n'est PAS bloquée selon le système :
-
+La tâche n'est PAS bloquée :
 - Titre : ${task.title}
 - Description : ${task.description}
-- Statut actuel : ${task.status}
-- Toutes les dépendances sont terminées ou il n'y en a pas.
-
-Génère des conseils préventifs pour éviter un blocage futur.
-
-JSON attendu :
+- Statut : ${task.status}
+JSON :
 {
   "isBlocked": false,
-  "reason": "explication que la tâche n'est pas bloquée et pourquoi",
-  "solutions": [
-    {"title": "Conseil 1", "description": "conseil préventif", "priority": "faible"}
-  ],
+  "reason": "explication",
+  "solutions": [{"title": "Conseil", "description": "conseil préventif", "priority": "faible"}],
   "urgency": "ignoré"
 }
-Génère exactement 3 conseils préventifs.`
+Génère 3 conseils préventifs.`;
 
-  const text = await callGroq(prompt)
-  return extractJSON(text)
+  const text = await callGroq(prompt);
+  return extractJSON(text);
 }
 
 // ── 8. Résumé personnalisé pour un membre ─────────────────────
 async function generateMemberSummary(member) {
   const prompt = `Tu es un assistant de gestion de projet. Réponds UNIQUEMENT en JSON valide.
-Voici les données d'un membre de l'équipe :
+Membre :
 - Nom : ${member.name}
 - Tâches assignées : ${member.totalTasks}
-- Tâches terminées : ${member.doneTasks}
-- Tâches en retard : ${member.lateTasks}
-- Tâches en cours : ${member.inProgressTasks}
-Liste des tâches : ${JSON.stringify(member.tasks || [])}
-Génère un résumé personnalisé et motivant.
+- Terminées : ${member.doneTasks}
+- En retard : ${member.lateTasks}
+- En cours : ${member.inProgressTasks}
+- Liste : ${JSON.stringify(member.tasks || [])}
 JSON attendu :
 {
-  "greeting": "message personnalisé avec le prénom",
-  "accomplished": "ce qu'il a accompli cette semaine",
-  "inProgress": "ce qu'il est en train de faire",
-  "nextPriority": "la prochaine tâche prioritaire à faire",
-  "encouragement": "message d'encouragement personnalisé",
-  "alert": "alerte si des tâches sont en retard, sinon null"
+  "greeting": "message personnalisé",
+  "accomplished": "ce qu'il a accompli",
+  "inProgress": "ce qu'il fait",
+  "nextPriority": "prochaine tâche prioritaire",
+  "encouragement": "message d'encouragement",
+  "alert": "alerte si retards, sinon null"
 }`;
 
   const text = await callGroq(prompt);
